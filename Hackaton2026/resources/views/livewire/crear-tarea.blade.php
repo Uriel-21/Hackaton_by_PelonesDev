@@ -37,7 +37,8 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha y Hora</label>
                         <input type="datetime-local"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                            wire:model="fechaHora" required>
+                            wire:model="fechaHora" required
+                            id="fechaHoraInput" min="{{ now()->format('Y-m-d\TH:i') }}">
                         @error('fechaHora')
                             <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
                         @enderror
