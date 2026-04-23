@@ -16,7 +16,7 @@ class MostrarTarea extends Component
             ->first();
 
         if ($proxima) {
-            $minutos = now()->diffInMinutes($proxima->fechaHora, false);
+            $minutos = round(now()->diffInMinutes($proxima->fechaHora, false));
 
             // 2. Solo notificamos si está dentro del rango de 30 minutos
             if ($minutos <= 30) {
