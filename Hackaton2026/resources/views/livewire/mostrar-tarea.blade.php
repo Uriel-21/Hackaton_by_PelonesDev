@@ -6,9 +6,15 @@
     intervalo: null,
 
     abrirDetalles(tarea) {
+        // Validación: Si ya hay una tarea corriendo y es la misma, no reseteamos el reloj
+        if (this.corriendo && this.tareaActiva && this.tareaActiva.id === tarea.id) {
+            this.modalAbierto = true;
+            return; 
+        }
+
         this.tareaActiva = tarea;
         this.modalAbierto = true;
-        // Reseteamos el cronómetro al abrir una nueva tarea
+        // Si es una tarea nueva, detenemos el reloj anterior y lo reiniciamos
         this.corriendo = false;
         if(this.intervalo) clearInterval(this.intervalo);
     },
@@ -16,12 +22,18 @@
     iniciarCronometro() {
         if (this.corriendo || !this.tareaActiva.tiempoAsignado) return;
 
-        let partes = this.tareaActiva.tiempoAsignado.split(':');
-        let h = parseInt(partes[0]) || 0;
-        let m = parseInt(partes[1]) || 0;
-        let s = parseInt(partes[2]) || 0;
-
-        this.segundos = (h * 3600) + (m * 60) + s;
+        // Validación: Convertir el formato HH:MM:SS de la BD a segundos totales
+        let tiempoString = this.tareaActiva.tiempoAsignado.toString();
+        let partes = tiempoString.split(':');
+        
+        if (partes.length === 3) {
+            let h = parseInt(partes[0]) || 0;
+            let m = parseInt(partes[1]) || 0;
+            let s = parseInt(partes[2]) || 0;
+            this.segundos = (h * 3600) + (m * 60) + s;
+        } else {
+            this.segundos = (parseInt(tiempoString) || 0) * 60;
+        }
 
         if (this.segundos <= 0) return;
 
@@ -33,7 +45,8 @@
                 clearInterval(this.intervalo);
                 this.corriendo = false;
                 alert('¡Tiempo terminado!');
-                $wire.finalizarTarea(this.tareaActiva.id);
+                // Descomenta la siguiente línea cuando se haga el backend de finalizar
+                // $wire.finalizarTarea(this.tareaActiva.id); 
             }
         }, 1000);
     },
@@ -46,8 +59,6 @@
     }
 }" class="p-6 min-h-screen bg-gray-50">
 
-
-
     <div class="mb-8 flex justify-between items-center max-w-6xl mx-auto">
         <h1 class="text-3xl font-extrabold text-gray-900">Lista de Tareas</h1>
         <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg shadow transition">
@@ -58,7 +69,7 @@
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-
+                
                 <thead class="bg-gray-100">
                     <tr>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tarea</th>
@@ -86,12 +97,12 @@
 
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-600">
-                                    ⏱ {{ $tarea->tiempoAsignado }} min
+                                    ⏱ {{ $tarea->tiempoAsignado }}
                                 </div>
                             </td>
 
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($tarea->importancia == 3)
+                                @if($tarea->importancia == 1)
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Alta</span>
                                 @elseif($tarea->importancia == 2)
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Media</span>
@@ -101,9 +112,9 @@
                             </td>
 
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($tarea->status === 'pendiente')
+                                @if(trim(strtolower($tarea->status)) === 'pendiente')
                                     <span class="text-sm font-medium text-gray-500">⏳ Por Hacer</span>
-                                @elseif($tarea->status === 'en_progreso')
+                                @elseif(trim(strtolower($tarea->status)) === 'en_progreso')
                                     <span class="text-sm font-medium text-blue-600">▶ En Progreso</span>
                                 @else
                                     <span class="text-sm font-medium text-green-600">✔ Finalizado</span>
@@ -132,11 +143,12 @@
         <div @click.away="modalAbierto = false" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
 
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 class="text-xl font-extrabold text-gray-800" x-text="tareaActiva?.nombre"></h3>
+                <h3 class="text-xl font-extrabold text-gray-800" x-text="tareaActiva?.nombreTarea"></h3>
                 <button @click="modalAbierto = false" class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
             </div>
 
             <div class="p-6 space-y-4">
+                
                 <div x-show="corriendo" class="text-center py-4 bg-indigo-50 rounded-xl mb-4">
                     <span class="text-4xl font-mono font-bold text-indigo-600" x-text="formatTime()"></span>
                 </div>
@@ -153,7 +165,7 @@
                     </div>
                     <div>
                         <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-1">Tiempo Estimado</h4>
-                        <p class="text-gray-800 font-medium" x-text="tareaActiva?.tiempoAsignado + ' minutos'"></p>
+                        <p class="text-gray-800 font-medium" x-text="tareaActiva?.tiempoAsignado"></p>
                     </div>
                 </div>
             </div>
@@ -163,7 +175,7 @@
                     Cerrar
                 </button>
 
-                <button x-show="tareaActiva?.status === 'pendiente' && !corriendo"
+                <button x-show="(tareaActiva?.status || '').toLowerCase().trim() === 'pendiente' && !corriendo"
                         @click="iniciarCronometro()"
                         class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow transition flex items-center gap-2">
                     <span>▶ Iniciar Tarea</span>
